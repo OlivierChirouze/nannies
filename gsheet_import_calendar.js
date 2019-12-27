@@ -1,3 +1,22 @@
+function onOpen() {
+    var ui = SpreadsheetApp.getUi();
+    // Or DocumentApp or FormApp.
+    ui.createMenu('Calendar import')
+        .addItem('Import current month', 'importCurrent')
+        .addToUi();
+}
+
+function importCurrent() {
+    var ui = SpreadsheetApp.getUi();
+    var response = ui.alert('Do you want to import current month?', ui.ButtonSet.YES_NO);
+
+    // Process the user's response.
+    if (response == ui.Button.YES) {
+        run();
+    }
+}
+
+
 // https://developers.google.com/apps-script/guides/sheets
 var CalendarImport = function () {
     return this;
@@ -173,7 +192,7 @@ CalendarImport.prototype = {
     }
 };
 
-function test() {
+function run() {
     // Current month by default
     //var currentDate = new Date('2018-04-21T08:45:00+01:00');
     var currentDate = new Date();
@@ -184,7 +203,9 @@ function test() {
     // 1) copy template to current month
     var sheet = calendarImport.copyTab("template", monthName);
 
+    // 2) get events from calendar
     var events = calendarImport.getMonthEvents(currentDate);
 
+    // 3) update tab
     calendarImport.dump(sheet, events);
 }
