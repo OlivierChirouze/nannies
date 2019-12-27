@@ -74,10 +74,15 @@ CalendarImport.prototype = {
         return sheet;
     },
 
-    copyTab: function (fromName, toName) {
+    copyTab: function (fromName, toName, position) {
         var from = this.getTab(fromName);
         var to = from.copyTo(this.getDoc());
         to.setName(toName);
+
+        to.activate();
+
+        this.getDoc().moveActiveSheet(position);
+
         return to;
     },
 
@@ -227,11 +232,13 @@ function run() {
     const calendarImport = new CalendarImport();
 
     // 1) copy template to current month
-    var sheet = calendarImport.copyTab("template", monthName);
+    var sheet = calendarImport.copyTab("template", monthName, 3);
 
     // 2) get events from calendar
     var events = calendarImport.getMonthEvents(currentDate);
 
     // 3) update tab
     calendarImport.dump(sheet, events);
+
+    sheet.setTabColor(null);
 }
