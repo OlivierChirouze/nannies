@@ -84,7 +84,7 @@ CalendarImport.prototype = {
     dump: function (sheet, events) {
         var row = 0;
 
-        const gridStartRow = 32; // TODO Make it parameter
+        const gridStartRow = 40; // TODO Make it parameter
         const gridStartCol = 2; // TODO Make it parameter
 
         const durationFormat = "[h]:mm";
@@ -124,6 +124,11 @@ CalendarImport.prototype = {
                 NAME: 'Indemnité d\'entretien',
                 FORMAT: costFormat
             },
+            food: {
+                COL: iCol++,
+                NAME: 'Repas',
+                FORMAT: costFormat
+            },
             notes: {
                 COL: iCol++,
                 NAME: 'Notes',
@@ -158,19 +163,36 @@ CalendarImport.prototype = {
                     ? undefined
                     : event.summary;
 
+                // Keywords to use in calendar
+                const bank_holidays = 'férié';
+                const vacations = 'congé';
+                const no_nanny = 'absence Nounou';
+                const no_baby = 'absence';
+                const no_lunch = 'sans repas';
+
                 var values = {
                     day: start, // Will be formatted
                     start: start,
                     end: end,
                     duration: "="
-                    + sameRowCol(header.end.COL) + "-"
-                    + sameRowCol(header.start.COL)
+                        + sameRowCol(header.end.COL) + "-"
+                        + sameRowCol(header.start.COL)
                     ,
                     overtime:
-                    '=if(value('+sameRowCol(header.duration.COL)
-                    +'-vlookup(weekday('+sameRowCol(header.start.COL)+';2);$F$22:$G$26;2))>0;'
-                    +sameRowCol(header.duration.COL)+'-vlookup(weekday('+sameRowCol(header.start.COL)+';2);$F$22:$G$26;2);"")',
-                    maintenance: '=if(OR('+sameRowCol(header.notes.COL)+'="congé";'+sameRowCol(header.notes.COL)+'="absence");"";$G$29)',
+                        '=if(value('+sameRowCol(header.duration.COL)
+                        +'-vlookup(weekday('+sameRowCol(header.start.COL)+';2);$F$23:$G$27;2))>0;'
+                        +sameRowCol(header.duration.COL)+'-vlookup(weekday('+sameRowCol(header.start.COL)+';2);$F$23:$G$27;2);"")',
+                    maintenance: '=if(OR('
+                        +sameRowCol(header.notes.COL)+'="' + bank_holidays + '";'
+                        +sameRowCol(header.notes.COL)+'="' + vacations + '";'
+                        +sameRowCol(header.notes.COL)+'="' + no_nanny + '";'
+                        +sameRowCol(header.notes.COL)+'="' + no_baby + '");"";MAX($D$20;'+sameRowCol(header.duration.COL)+'*24*$D$21))',
+                    food: '=if(OR('
+                        +sameRowCol(header.notes.COL)+'="' + bank_holidays + '";'
+                        +sameRowCol(header.notes.COL)+'="' + vacations + '";'
+                        +sameRowCol(header.notes.COL)+'="' + no_lunch + '";'
+                        +sameRowCol(header.notes.COL)+'="' + no_nanny + '";'
+                        +sameRowCol(header.notes.COL)+'="' + no_baby + '");"";$G$32)',
                     notes: (!summary)
                         ? '=if('+sameRowCol(header.overtime.COL)+'<>"";"Dépassement : "&text('+sameRowCol(header.start.COL)+';"hh:mm")&" - "&text('+sameRowCol(header.end.COL)+';"hh:mm");"")'  // TODO
                         : summary
@@ -185,9 +207,13 @@ CalendarImport.prototype = {
             columns.forEach(function (key, index) {
                 sheet.getRange(gridStartRow, header[key].COL, events.length).setNumberFormat(header[key].FORMAT);
             });
+
+            return true;
         } else {
             sheet.getRange(gridStartRow, 1).setValue('Aucun évènement');
-            Logger.log('No event found for %s', monthBegin);
+            Logger.log('No event found');
+
+            return false;
         }
     }
 };
