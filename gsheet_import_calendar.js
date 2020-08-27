@@ -1,21 +1,32 @@
+function getPreviousMonth() {
+    var previousMonth = new Date();
+    previousMonth.setMonth(previousMonth.getMonth() - 1);
+    return previousMonth;
+}
+
 function onOpen() {
+    var currentMonth = new Date();
+    var previousMonth = getPreviousMonth();
+
     var ui = SpreadsheetApp.getUi();
     // Or DocumentApp or FormApp.
     ui.createMenu('Calendar import')
-        .addItem('Import current month', 'importCurrent')
+        .addItem('Import ' + formatDate(previousMonth), 'importPreviousMonth')
+        .addItem('Import ' + formatDate(currentMonth), 'importCurrentMonth')
         .addToUi();
 }
 
-function importCurrent() {
-    var ui = SpreadsheetApp.getUi();
-    var response = ui.alert('Do you want to import current month?', ui.ButtonSet.YES_NO);
-
-    // Process the user's response.
-    if (response == ui.Button.YES) {
-        run();
-    }
+function formatDate(date) {
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
 }
 
+function importPreviousMonth() {
+    importMonth(getPreviousMonth());
+}
+
+function importCurrentMonth() {
+    importMonth(new Date());
+}
 
 // https://developers.google.com/apps-script/guides/sheets
 var CalendarImport = function () {
@@ -63,7 +74,7 @@ CalendarImport.prototype = {
     },
 
     getOrCreateTab: function (tabName) {
-        var existingTab = getTab(tabName);
+        var existingTab = this.getTab(tabName);
         if (existingTab != undefined) {
             return existingTab;
         }
@@ -147,7 +158,7 @@ CalendarImport.prototype = {
             for (i = 0; i < events.length; i++) {
                 row = i + gridStartRow;
 
-                var sameRowCol = function(col) {
+                var sameRowCol = function (col) {
                     return sheet.getRange(row, col).getA1Notation();
                 }
 
@@ -184,22 +195,22 @@ CalendarImport.prototype = {
                         + sameRowCol(header.start.COL)
                     ,
                     overtime:
-                        '=if(value('+sameRowCol(header.duration.COL)
-                        +'-vlookup(weekday('+sameRowCol(header.start.COL)+';2);$F$23:$G$27;2))>0;'
-                        +sameRowCol(header.duration.COL)+'-vlookup(weekday('+sameRowCol(header.start.COL)+';2);$F$23:$G$27;2);"")',
+                        '=if(value(' + sameRowCol(header.duration.COL)
+                        + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$G$27;2))>0;'
+                        + sameRowCol(header.duration.COL) + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$G$27;2);"")',
                     maintenance: '=if(OR('
-                        +sameRowCol(header.notes.COL)+'="' + bank_holidays + '";'
-                        +sameRowCol(header.notes.COL)+'="' + vacations + '";'
-                        +sameRowCol(header.notes.COL)+'="' + no_nanny + '";'
-                        +sameRowCol(header.notes.COL)+'="' + no_baby + '");"";MAX($D$20;'+sameRowCol(header.duration.COL)+'*24*$D$21))',
+                        + sameRowCol(header.notes.COL) + '="' + bank_holidays + '";'
+                        + sameRowCol(header.notes.COL) + '="' + vacations + '";'
+                        + sameRowCol(header.notes.COL) + '="' + no_nanny + '";'
+                        + sameRowCol(header.notes.COL) + '="' + no_baby + '");"";MAX($D$20;' + sameRowCol(header.duration.COL) + '*24*$D$21))',
                     food: '=if(OR('
-                        +sameRowCol(header.notes.COL)+'="' + bank_holidays + '";'
-                        +sameRowCol(header.notes.COL)+'="' + vacations + '";'
-                        +sameRowCol(header.notes.COL)+'="' + no_lunch + '";'
-                        +sameRowCol(header.notes.COL)+'="' + no_nanny + '";'
-                        +sameRowCol(header.notes.COL)+'="' + no_baby + '");"";$G$32)',
+                        + sameRowCol(header.notes.COL) + '="' + bank_holidays + '";'
+                        + sameRowCol(header.notes.COL) + '="' + vacations + '";'
+                        + sameRowCol(header.notes.COL) + '="' + no_lunch + '";'
+                        + sameRowCol(header.notes.COL) + '="' + no_nanny + '";'
+                        + sameRowCol(header.notes.COL) + '="' + no_baby + '");"";$G$32)',
                     notes: (!summary)
-                        ? '=if('+sameRowCol(header.overtime.COL)+'<>"";"Dépassement : "&text('+sameRowCol(header.start.COL)+';"hh:mm")&" - "&text('+sameRowCol(header.end.COL)+';"hh:mm");"")'  // TODO
+                        ? '=if(' + sameRowCol(header.overtime.COL) + '<>"";"Dépassement : "&text(' + sameRowCol(header.start.COL) + ';"hh:mm")&" - "&text(' + sameRowCol(header.end.COL) + ';"hh:mm");"")'  // TODO
                         : summary
                 };
 
@@ -223,19 +234,16 @@ CalendarImport.prototype = {
     }
 };
 
-function run() {
-    // Current month by default
-    //var currentDate = new Date('2018-04-21T08:45:00+01:00');
-    var currentDate = new Date();
-    var monthName = currentDate.getFullYear() + "-" + ("0" + (currentDate.getMonth() + 1)).slice(-2);
-
+function importMonth(date) {
     const calendarImport = new CalendarImport();
+
+    var monthName = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2);
 
     // 1) copy template to current month
     var sheet = calendarImport.copyTab("template", monthName, 3);
 
     // 2) get events from calendar
-    var events = calendarImport.getMonthEvents(currentDate);
+    var events = calendarImport.getMonthEvents(date);
 
     // 3) update tab
     calendarImport.dump(sheet, events);
