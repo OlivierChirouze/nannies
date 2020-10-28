@@ -196,8 +196,8 @@ CalendarImport.prototype = {
                     ,
                     overtime:
                         '=if(value(' + sameRowCol(header.duration.COL)
-                        + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$G$27;2))>0;'
-                        + sameRowCol(header.duration.COL) + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$G$27;2);"")',
+                        + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$H$27;3))>0;'
+                        + sameRowCol(header.duration.COL) + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$H$27;3);"")',
                     maintenance: '=if(OR('
                         + sameRowCol(header.notes.COL) + '="' + bank_holidays + '";'
                         + sameRowCol(header.notes.COL) + '="' + vacations + '";'
