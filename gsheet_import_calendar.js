@@ -1,14 +1,14 @@
 function getPreviousMonth() {
-    var previousMonth = new Date();
+    const previousMonth = new Date();
     previousMonth.setMonth(previousMonth.getMonth() - 1);
     return previousMonth;
 }
 
 function onOpen() {
-    var currentMonth = new Date();
-    var previousMonth = getPreviousMonth();
+    const currentMonth = new Date();
+    const previousMonth = getPreviousMonth();
 
-    var ui = SpreadsheetApp.getUi();
+    const ui = SpreadsheetApp.getUi();
     // Or DocumentApp or FormApp.
     ui.createMenu('Calendar import')
         .addItem('Import ' + formatDate(previousMonth), 'importPreviousMonth')
@@ -17,7 +17,7 @@ function onOpen() {
 }
 
 function formatDate(date) {
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+    return date.toLocaleDateString(undefined, {year: 'numeric', month: 'long'});
 }
 
 function importPreviousMonth() {
@@ -29,7 +29,7 @@ function importCurrentMonth() {
 }
 
 // https://developers.google.com/apps-script/guides/sheets
-var CalendarImport = function () {
+const CalendarImport = function () {
     return this;
 };
 
@@ -38,14 +38,14 @@ CalendarImport.maxMonthEvents = 300;
 
 CalendarImport.prototype = {
     getMonthEvents: function (currentDate) {
-        var calendarId = 'ie7d48frttnbcj8678ln7lv860@group.calendar.google.com';
+        const calendarId = 'ie7d48frttnbcj8678ln7lv860@group.calendar.google.com';
 
         // First day of month
-        var monthBegin = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const monthBegin = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
         // Last day of month, end of day
-        var monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
 
-        var optionalArgs = {
+        const optionalArgs = {
             timeMin: monthBegin.toISOString(),
             timeMax: monthEnd.toISOString(),
             showDeleted: false,
@@ -58,9 +58,9 @@ CalendarImport.prototype = {
     },
 
     getTab: function (tabName) {
-        var sheets = this.getDoc().getSheets();
+        const sheets = this.getDoc().getSheets();
 
-        for (var iSheet in sheets) {
+        for (let iSheet in sheets) {
             if (tabName === sheets[iSheet].getName()) {
                 return sheets[iSheet];
             }
@@ -74,20 +74,20 @@ CalendarImport.prototype = {
     },
 
     getOrCreateTab: function (tabName) {
-        var existingTab = this.getTab(tabName);
-        if (existingTab != undefined) {
+        const existingTab = this.getTab(tabName);
+        if (existingTab !== undefined) {
             return existingTab;
         }
 
-        var sheet = getDoc().insertSheet();
+        const sheet = getDoc().insertSheet();
         sheet.setName(tabName);
 
         return sheet;
     },
 
     copyTab: function (fromName, toName, position) {
-        var from = this.getTab(fromName);
-        var to = from.copyTo(this.getDoc());
+        const from = this.getTab(fromName);
+        const to = from.copyTo(this.getDoc());
         to.setName(toName);
 
         to.activate();
@@ -98,15 +98,13 @@ CalendarImport.prototype = {
     },
 
     dump: function (sheet, events) {
-        var row = 0;
-
         const gridStartRow = 40; // TODO Make it parameter
         const gridStartCol = 2; // TODO Make it parameter
 
         const durationFormat = "[h]:mm";
         const costFormat = "0.00 €";
 
-        var iCol = gridStartCol;
+        let iCol = gridStartCol;
 
         // Header
         const header = {
@@ -115,14 +113,14 @@ CalendarImport.prototype = {
                 NAME: 'Jour',
                 FORMAT: "dddd d"
             },
-            start: {
+            periods: {
                 COL: iCol++,
-                NAME: 'Arrivée',
-                FORMAT: "HH:mm"
+                NAME: 'Périodes',
+                FORMAT: ""
             },
-            end: {
+            deprecated: {
                 COL: iCol++,
-                NAME: 'Départ',
+                NAME: '',
                 FORMAT: "HH:mm"
             },
             duration: {
@@ -154,50 +152,67 @@ CalendarImport.prototype = {
 
         const columns = Object.keys(header);
 
+        // Keywords to use in calendar
+        const bank_holidays = 'férié';
+        const vacations = 'congé';
+        const no_nanny = 'absence Nounou';
+        const no_baby = 'absence';
+        const no_lunch = 'sans repas';
+
         if (events.length > 0) {
+            let row = gridStartRow;
+            const getDay = (date) => date.toLocaleString().split(',')[0]
+            const getTime = (date) => date.toLocaleString('en-US', {hour12: false})
+                .replace(/.* /, '')
+                .replace(/:\d\d$/, '')
+
+            let duration = 0
+            let periods = []
+            let currentDay = undefined;
+
             for (i = 0; i < events.length; i++) {
-                row = i + gridStartRow;
-
-                var sameRowCol = function (col) {
-                    return sheet.getRange(row, col).getA1Notation();
-                }
-
-                var event = events[i];
-                var startTime = event.start.dateTime;
+                const event = events[i];
+                let startTime = event.start.dateTime;
                 if (!startTime) {
                     startTime = event.start.date;
                 }
-                var endTime = event.end.dateTime;
+                let endTime = event.end.dateTime;
                 if (!endTime) {
                     endTime = event.end.date;
                 }
                 // Use date objects!
-                var end = new Date(endTime);
-                var start = new Date(startTime);
+                const end = new Date(endTime);
+                const start = new Date(startTime);
 
-                var summary = (!event.summary || event.summary == 'Nouvel événement')
+                const summary = (!event.summary || event.summary === 'Nouvel événement')
                     ? undefined
                     : event.summary;
 
-                // Keywords to use in calendar
-                const bank_holidays = 'férié';
-                const vacations = 'congé';
-                const no_nanny = 'absence Nounou';
-                const no_baby = 'absence';
-                const no_lunch = 'sans repas';
+                if (currentDay !== undefined && currentDay !== getDay(start)) {
+                    // Different day => go to next row
+                    row++;
+                    duration = 0
+                    periods = []
+                }
 
-                var values = {
+                currentDay = getDay(start)
+
+                periods.push(getTime(start) + '-' + getTime(end))
+
+                const sameRowCol = function (col) {
+                    return sheet.getRange(row, col).getA1Notation();
+                };
+
+                duration += (end.getTime() - start.getTime()) / 1000 / 3600 / 24;
+
+                const values = {
                     day: start, // Will be formatted
-                    start: start,
-                    end: end,
-                    duration: "="
-                        + sameRowCol(header.end.COL) + "-"
-                        + sameRowCol(header.start.COL)
-                    ,
+                    periods: periods.join(' '), // Stores a concatenation of periods
+                    duration: duration,
                     overtime:
                         '=if(value(' + sameRowCol(header.duration.COL)
-                        + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$H$27;3))>0;'
-                        + sameRowCol(header.duration.COL) + '-vlookup(weekday(' + sameRowCol(header.start.COL) + ';2);$F$23:$H$27;3);"")',
+                        + '-vlookup(weekday(' + sameRowCol(header.day.COL) + ';2);$F$23:$H$27;3))>0;'
+                        + sameRowCol(header.duration.COL) + '-vlookup(weekday(' + sameRowCol(header.day.COL) + ';2);$F$23:$H$27;3);"")',
                     maintenance: '=if(OR('
                         + sameRowCol(header.notes.COL) + '="' + bank_holidays + '";'
                         + sameRowCol(header.notes.COL) + '="' + vacations + '";'
@@ -210,19 +225,17 @@ CalendarImport.prototype = {
                         + sameRowCol(header.notes.COL) + '="' + no_nanny + '";'
                         + sameRowCol(header.notes.COL) + '="' + no_baby + '");"";$G$32)',
                     notes: (!summary)
-                        ? '=if(' + sameRowCol(header.overtime.COL) + '<>"";"Dépassement : "&text(' + sameRowCol(header.start.COL) + ';"hh:mm")&" - "&text(' + sameRowCol(header.end.COL) + ';"hh:mm");"")'  // TODO
+                        ? '=if(' + sameRowCol(header.overtime.COL) + '<>"";"Dépassement : "&text(' + sameRowCol(header.day.COL) + ';"hh:mm")&" - "&text(' + sameRowCol(header.deprecated.COL) + ';"hh:mm");"")'  // TODO
                         : summary
                 };
 
-                columns.forEach(function (key, index) {
-                    sheet.getRange(row, header[key].COL).setValue(values[key]);
+                columns.forEach((key, index) => {
+                    const cell = sheet.getRange(row, header[key].COL);
+                    // Set format right now to ensure next row will have previous values in the right format
+                    cell.setNumberFormat(header[key].FORMAT)
+                    cell.setValue(values[key]);
                 });
             }
-
-            // Now format all columns
-            columns.forEach(function (key, index) {
-                sheet.getRange(gridStartRow, header[key].COL, events.length).setNumberFormat(header[key].FORMAT);
-            });
 
             return true;
         } else {
@@ -237,13 +250,15 @@ CalendarImport.prototype = {
 function importMonth(date) {
     const calendarImport = new CalendarImport();
 
-    var monthName = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2);
+    const monthName = date.getFullYear() + "-" + ("0" + (date.getMonth() + 1)).slice(-2);
 
     // 1) copy template to current month
-    var sheet = calendarImport.copyTab("template", monthName, 3);
+    const sheet = calendarImport.copyTab("template", monthName, 3);
 
     // 2) get events from calendar
-    var events = calendarImport.getMonthEvents(date);
+    const events = calendarImport.getMonthEvents(date);
+
+    Logger.log(events);
 
     // 3) update tab
     calendarImport.dump(sheet, events);
